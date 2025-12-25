@@ -1,0 +1,150 @@
+@extends('admin.layout')
+
+@section('title', 'プラン管理')
+
+@section('content')
+  {{-- Page Header --}}
+  <div class="page-header-section reveal">
+    <h1 class="page-title">プラン管理</h1>
+    <div class="header-actions">
+      <a href="{{ route('admin.plans.create') }}" class="btn btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        新規プラン
+      </a>
+    </div>
+  </div>
+
+  @php
+    $typeLabels = [
+      1 => '月額',
+      2 => '回数券',
+      3 => 'ポイント',
+      4 => 'コース',
+    ];
+    $typeBadgeColors = [
+      1 => 'badge-success',
+      2 => 'badge-warning',
+      3 => 'badge-success',
+      4 => 'badge-warning',
+    ];
+  @endphp
+
+  {{-- Stats Summary --}}
+  <div class="stats-grid" style="margin-bottom: 2rem;">
+    <div class="stat-card reveal reveal-delay-1">
+      <div class="stat-icon indigo">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+        </svg>
+      </div>
+      <div class="stat-label">総プラン数</div>
+      <div class="stat-value">{{ $plans->total() }}</div>
+    </div>
+    <div class="stat-card reveal reveal-delay-2">
+      <div class="stat-icon emerald">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div class="stat-label">有効プラン</div>
+      <div class="stat-value">{{ $plans->where('status', 1)->count() }}</div>
+    </div>
+  </div>
+
+  {{-- Data Table --}}
+  <div class="glass-card reveal reveal-delay-3">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>種別</th>
+          <th>プラン名</th>
+          <th>コースID</th>
+          <th>付与量</th>
+          <th>有効日数</th>
+          <th>Stripe</th>
+          <th>ステータス</th>
+          <th style="text-align: right;">アクション</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse ($plans as $plan)
+          <tr>
+            <td>
+              <span style="font-family: var(--font-numbers); color: #64748B;">{{ $plan->plan_id }}</span>
+            </td>
+            <td>
+              <span class="badge {{ $typeBadgeColors[$plan->plan_type] ?? 'badge-success' }}">{{ $typeLabels[$plan->plan_type] ?? $plan->plan_type }}</span>
+            </td>
+            <td>
+              <span style="font-weight: 500; color: #F8FAFC;">{{ $plan->plan_name }}</span>
+            </td>
+            <td>
+              <span style="font-family: var(--font-numbers); color: #64748B;">{{ $plan->cource_id ?: '-' }}</span>
+            </td>
+            <td>
+              <span style="font-family: var(--font-numbers);">{{ $plan->plan_usage_count }}</span>
+            </td>
+            <td>
+              <span style="font-family: var(--font-numbers);">{{ $plan->plan_usage_date }}</span>
+            </td>
+            <td>
+              @if(data_get($plan->additional_info, 'stripe_price_id'))
+                <span class="badge badge-success" style="font-size: 0.65rem;">Connected</span>
+              @else
+                <span style="color: #64748B;">-</span>
+              @endif
+            </td>
+            <td>
+              @if ($plan->status === 1)
+                <span class="badge badge-success">有効</span>
+              @else
+                <span class="badge badge-danger">無効</span>
+              @endif
+            </td>
+            <td style="text-align: right;">
+              <div class="action-buttons" style="justify-content: flex-end;">
+                <a href="{{ route('admin.plans.edit', $plan) }}" class="btn btn-secondary btn-sm">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                  編集
+                </a>
+                @if ($plan->status === 1)
+                  <form method="post" action="{{ route('admin.plans.destroy', $plan) }}" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('このプランを無効化しますか？')">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                      </svg>
+                      無効化
+                    </button>
+                  </form>
+                @endif
+              </div>
+            </td>
+          </tr>
+        @empty
+          <tr>
+            <td colspan="9" style="text-align: center; padding: 3rem; color: #64748B;">
+              <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 1rem; opacity: 0.5;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+              </svg>
+              <div>プランがまだ登録されていません</div>
+            </td>
+          </tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+
+  {{-- Pagination --}}
+  @if ($plans->hasPages())
+    <div style="margin-top: 2rem; display: flex; justify-content: center;">
+      {{ $plans->links() }}
+    </div>
+  @endif
+@endsection
