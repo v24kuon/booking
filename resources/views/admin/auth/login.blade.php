@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   {{-- Admin Stylesheet --}}
-  <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ filemtime(public_path('css/admin.css')) }}">
 </head>
 <body class="admin-body">
   {{-- Aurora Background --}}
@@ -93,8 +93,8 @@
         </button>
       </form>
 
-      <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.1);">
-        <a href="{{ url('/') }}" style="color: #64748B; font-size: 0.875rem;">
+      <div class="login-footer">
+        <a href="{{ url('/') }}">
           ← トップページへ戻る
         </a>
       </div>
