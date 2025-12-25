@@ -11,7 +11,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   {{-- Admin Stylesheet --}}
-  <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ filemtime(public_path('css/admin.css')) }}">
+  @php
+    $adminCssPath = public_path('css/admin.css');
+    $adminCssVersion = null;
+
+    if (is_file($adminCssPath)) {
+        $mtime = @filemtime($adminCssPath);
+        if ($mtime !== false) {
+            $adminCssVersion = (string) $mtime;
+        } else {
+            $hash = @hash_file('crc32b', $adminCssPath);
+            if ($hash !== false) {
+                $adminCssVersion = $hash;
+            }
+        }
+    }
+  @endphp
+  <link rel="stylesheet" href="{{ asset('css/admin.css') }}@if($adminCssVersion)?v={{ $adminCssVersion }}@endif">
 </head>
 <body class="admin-body">
   {{-- Aurora Background --}}

@@ -866,7 +866,9 @@ a:hover {
 /* Login Footer */
 .login-footer {
   text-align: center;
-  margin-top: var(--space-md);
+  margin-top: clamp(1rem, 3vh, 2rem);
+  padding-top: clamp(1rem, 3vh, 2rem);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .login-footer a {
