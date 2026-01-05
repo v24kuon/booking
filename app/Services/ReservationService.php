@@ -7,6 +7,7 @@ use App\Models\ContractEvent;
 use App\Models\CourseProgram;
 use App\Models\Deadline;
 use App\Models\Member;
+use App\Models\Plan;
 use App\Models\Reservation;
 use App\Models\Session;
 use Illuminate\Database\QueryException;

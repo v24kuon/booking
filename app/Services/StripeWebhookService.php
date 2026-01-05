@@ -106,13 +106,17 @@ class StripeWebhookService
         }
 
         $contract = Contract::query()
-            ->where(function ($query) use ($subscriptionId) {
-                $query
-                    ->where('stripe_subscription_id', $subscriptionId)
-                    ->orWhere('additional_info->stripe_subscription_id', $subscriptionId);
-            })
+            ->where('stripe_subscription_id', $subscriptionId)
             ->lockForUpdate()
             ->first();
+
+        if ($contract === null) {
+            // Backward compatible fallback for environments where JSON backfill is not complete yet.
+            $contract = Contract::query()
+                ->where('additional_info->stripe_subscription_id', $subscriptionId)
+                ->lockForUpdate()
+                ->first();
+        }
 
         if ($contract !== null) {
             $currentMemberId = (string) ($contract->member_id ?? '');
@@ -177,8 +181,8 @@ class StripeWebhookService
         $contract->upd_time = $now;
         $contract->end_date = null;
         $contract->plan_limit_date = null;
-        $contract->auto_renewal_flag = 1;
-        $contract->status = 1;
+        $contract->auto_renewal_flag = Contract::AUTO_RENEWAL_ENABLED;
+        $contract->status = Contract::STATUS_ACTIVE;
         $contract->stripe_subscription_id = $subscriptionId;
         $contract->stripe_price_id = $priceId;
         if (is_string($customerId) && $customerId !== '') {
@@ -344,8 +348,8 @@ class StripeWebhookService
         }
 
         $contract->end_date = $now->toDateString();
-        $contract->auto_renewal_flag = 9;
-        $contract->status = 9;
+        $contract->auto_renewal_flag = Contract::AUTO_RENEWAL_CANCELED;
+        $contract->status = Contract::STATUS_CANCELED;
         $contract->upd_time = $now;
         $contract->save();
 
@@ -432,7 +436,7 @@ class StripeWebhookService
         $contract = Contract::query()
             ->where('member_id', $memberId)
             ->where('plan_id', $plan->getKey())
-            ->whereIn('status', [1, 2])
+            ->whereIn('status', [Contract::STATUS_ACTIVE, Contract::STATUS_SUSPENDED])
             ->where(function ($query) use ($now) {
                 $query
                     ->whereNull('plan_limit_date')
@@ -453,8 +457,8 @@ class StripeWebhookService
                 'start_date' => $now->toDateString(),
                 'end_date' => null,
                 'plan_limit_date' => $limitDate?->toDateString(),
-                'auto_renewal_flag' => 9,
-                'status' => 1,
+                'auto_renewal_flag' => Contract::AUTO_RENEWAL_CANCELED,
+                'status' => Contract::STATUS_ACTIVE,
                 'additional_info' => [],
             ]);
         }
@@ -462,7 +466,7 @@ class StripeWebhookService
         $contract->plan_remain_count = (int) $contract->plan_remain_count + $grantAmount;
         $contract->plan_limit_date = $limitDate?->toDateString();
         $contract->upd_time = $now;
-        $contract->status = 1;
+        $contract->status = Contract::STATUS_ACTIVE;
 
         $additional = is_array($contract->additional_info) ? $contract->additional_info : [];
         $additional['stripe_checkout_session_id'] = $session['id'] ?? null;
@@ -525,13 +529,18 @@ class StripeWebhookService
 
     private function resolvePlanByStripePriceId(string $stripePriceId): ?Plan
     {
-        return Plan::query()
-            ->where(function ($query) use ($stripePriceId) {
-                $query
-                    ->where('stripe_price_id', $stripePriceId)
-                    ->orWhere('additional_info->stripe_price_id', $stripePriceId);
-            })
+        $plan = Plan::query()
+            ->where('stripe_price_id', $stripePriceId)
             ->first();
+
+        if ($plan === null) {
+            // Backward compatible fallback for environments where JSON backfill is not complete yet.
+            $plan = Plan::query()
+                ->where('additional_info->stripe_price_id', $stripePriceId)
+                ->first();
+        }
+
+        return $plan;
     }
 
     /**
