@@ -66,8 +66,10 @@ class PlanController extends Controller
 
         $additional = (array) ($plan->additional_info ?? []);
         if (! empty($data['stripe_price_id'])) {
+            $plan->stripe_price_id = $data['stripe_price_id'];
             $additional['stripe_price_id'] = $data['stripe_price_id'];
         } else {
+            $plan->stripe_price_id = null;
             unset($additional['stripe_price_id']);
         }
         $plan->additional_info = $additional;
@@ -117,8 +119,10 @@ class PlanController extends Controller
 
         $additional = (array) ($plan->additional_info ?? []);
         if (! empty($data['stripe_price_id'])) {
+            $plan->stripe_price_id = $data['stripe_price_id'];
             $additional['stripe_price_id'] = $data['stripe_price_id'];
         } else {
+            $plan->stripe_price_id = null;
             unset($additional['stripe_price_id']);
         }
         $plan->additional_info = $additional;

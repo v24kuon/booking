@@ -60,7 +60,7 @@ class ReservationService
 
         $subscriptionCourseIds = $contracts
             ->map(fn (Contract $contract) => $contract->plan)
-            ->filter(fn ($plan) => $plan !== null && (int) $plan->plan_type === 1 && ! empty($plan->cource_id))
+            ->filter(fn ($plan) => $plan !== null && (int) $plan->plan_type === Plan::TYPE_SUBSCRIPTION && ! empty($plan->cource_id))
             ->map(fn ($plan) => (string) $plan->cource_id)
             ->unique()
             ->values();
@@ -87,7 +87,7 @@ class ReservationService
                 $reservePayment = 0;
                 $labelPrefix = '';
 
-                if ($planType === 1) {
+                if ($planType === Plan::TYPE_SUBSCRIPTION) {
                     // Subscription: always 1, but must be within course category set.
                     if (empty($plan->cource_id)) {
                         return null;
@@ -100,7 +100,7 @@ class ReservationService
                     $reservePayment = 5;
                     $consumeAmount = 1;
                     $labelPrefix = 'サブスク';
-                } elseif ($planType === 2) {
+                } elseif ($planType === Plan::TYPE_TICKET) {
                     // Ticket
                     $consumeAmount = (int) ($program->program_ticket ?? 0);
                     if ($consumeAmount <= 0) {
@@ -109,7 +109,7 @@ class ReservationService
 
                     $reservePayment = 3;
                     $labelPrefix = '回数券';
-                } elseif ($planType === 3) {
+                } elseif ($planType === Plan::TYPE_POINT) {
                     // Point
                     $consumeAmount = (int) ($program->program_point ?? 0);
                     if ($consumeAmount <= 0) {
@@ -284,7 +284,7 @@ class ReservationService
                     'reserve_type' => 1,
                     'channel' => $channel,
                     'reserve_status' => 1,
-                    'payment_status' => 1,
+                    'payment_status' => Reservation::PAYMENT_STATUS_PAID,
                     'attendance_status' => 9,
                     'additional_info' => [
                         'consumption' => [
@@ -399,7 +399,7 @@ class ReservationService
                     'reserve_type' => 2, // trial
                     'channel' => $channel,
                     'reserve_status' => 1,
-                    'payment_status' => 1,
+                    'payment_status' => Reservation::PAYMENT_STATUS_PAID,
                     'attendance_status' => 9,
                 ]);
                 $reservation->save();

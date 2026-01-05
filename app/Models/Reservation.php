@@ -11,6 +11,12 @@ class Reservation extends Model
 
     public const TYPE_TRIAL = 2;
 
+    public const PAYMENT_STATUS_PENDING = 0;
+
+    public const PAYMENT_STATUS_PAID = 1;
+
+    public const PAYMENT_STATUS_CANCELED = 9;
+
     protected $table = 'reseve_info';
 
     protected $primaryKey = 'reserve_id';

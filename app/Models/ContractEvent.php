@@ -11,10 +11,13 @@ class ContractEvent extends Model
 
     protected $primaryKey = 'event_id';
 
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
-        'event_id',
         'event_type',
         'contract_id',
         'start_date',

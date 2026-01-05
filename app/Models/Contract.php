@@ -27,6 +27,9 @@ class Contract extends Model
         'plan_remain_count',
         'plan_limit_date',
         'auto_renewal_flag',
+        'stripe_subscription_id',
+        'stripe_customer_id',
+        'stripe_price_id',
         'additional_info',
         'status',
     ];

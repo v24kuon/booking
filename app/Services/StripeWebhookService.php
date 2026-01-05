@@ -24,6 +24,11 @@ class StripeWebhookService
         $eventType = $event['type'] ?? null;
 
         if (! is_string($eventId) || $eventId === '' || ! is_string($eventType) || $eventType === '') {
+            Log::warning('Stripe webhook: invalid event payload (missing id/type).', [
+                'event_id' => $eventId,
+                'event_type' => $eventType,
+            ]);
+
             return;
         }
 
@@ -101,9 +106,41 @@ class StripeWebhookService
         }
 
         $contract = Contract::query()
-            ->where('additional_info->stripe_subscription_id', $subscriptionId)
+            ->where(function ($query) use ($subscriptionId) {
+                $query
+                    ->where('stripe_subscription_id', $subscriptionId)
+                    ->orWhere('additional_info->stripe_subscription_id', $subscriptionId);
+            })
             ->lockForUpdate()
             ->first();
+
+        if ($contract !== null) {
+            $currentMemberId = (string) ($contract->member_id ?? '');
+            if ($currentMemberId !== '' && $currentMemberId !== $memberId) {
+                Log::warning('Stripe webhook: subscription.created member mismatch for existing contract.', [
+                    'subscription_id' => $subscriptionId,
+                    'contract_id' => $contract->getKey(),
+                    'contract_member_id' => $currentMemberId,
+                    'event_member_id' => $memberId,
+                ]);
+
+                return;
+            }
+
+            $currentPlanId = (string) ($contract->plan_id ?? '');
+            $eventPlanId = (string) $plan->getKey();
+            if ($currentPlanId !== '' && $currentPlanId !== $eventPlanId) {
+                Log::warning('Stripe webhook: subscription.created plan mismatch for existing contract.', [
+                    'subscription_id' => $subscriptionId,
+                    'contract_id' => $contract->getKey(),
+                    'contract_plan_id' => $currentPlanId,
+                    'event_plan_id' => $eventPlanId,
+                    'price_id' => $priceId,
+                ]);
+
+                return;
+            }
+        }
 
         $additional = is_array($contract?->additional_info) ? $contract->additional_info : [];
         $additional['stripe_subscription_id'] = $subscriptionId;
@@ -118,19 +155,36 @@ class StripeWebhookService
             $contract->contract_id = $this->idGenerator->next('contract', 'CT', 8);
             $contract->crt_time = $now;
             $contract->plan_remain_count = 0;
+            $contract->member_id = $memberId;
+            $contract->plan_id = $plan->getKey();
+            $contract->start_date = $now->toDateString();
+            $contract->end_date = null;
+            $contract->plan_limit_date = null;
+        } else {
+            if ($contract->member_id === null || $contract->member_id === '') {
+                $contract->member_id = $memberId;
+            }
+
+            if ($contract->plan_id === null || $contract->plan_id === '') {
+                $contract->plan_id = $plan->getKey();
+            }
+
+            if ($contract->start_date === null) {
+                $contract->start_date = $now->toDateString();
+            }
         }
 
         $contract->upd_time = $now;
-        $contract->fill([
-            'member_id' => $memberId,
-            'plan_id' => $plan->getKey(),
-            'start_date' => $contract->start_date ?? $now->toDateString(),
-            'end_date' => null,
-            'plan_limit_date' => null,
-            'auto_renewal_flag' => 1,
-            'status' => 1,
-            'additional_info' => $additional,
-        ]);
+        $contract->end_date = null;
+        $contract->plan_limit_date = null;
+        $contract->auto_renewal_flag = 1;
+        $contract->status = 1;
+        $contract->stripe_subscription_id = $subscriptionId;
+        $contract->stripe_price_id = $priceId;
+        if (is_string($customerId) && $customerId !== '') {
+            $contract->stripe_customer_id = $customerId;
+        }
+        $contract->additional_info = $additional;
         $contract->save();
 
         $this->recordContractEvent(
@@ -180,7 +234,11 @@ class StripeWebhookService
         }
 
         $contract = Contract::query()
-            ->where('additional_info->stripe_subscription_id', $subscriptionId)
+            ->where(function ($query) use ($subscriptionId) {
+                $query
+                    ->where('stripe_subscription_id', $subscriptionId)
+                    ->orWhere('additional_info->stripe_subscription_id', $subscriptionId);
+            })
             ->lockForUpdate()
             ->first();
 
@@ -198,22 +256,33 @@ class StripeWebhookService
             $contract->contract_id = $this->idGenerator->next('contract', 'CT', 8);
             $contract->crt_time = $now;
             $contract->plan_remain_count = 0;
-            $contract->fill([
-                'member_id' => $memberId,
-                'plan_id' => $plan->getKey(),
-                'start_date' => $now->toDateString(),
-                'end_date' => null,
-                'plan_limit_date' => null,
-                'auto_renewal_flag' => 1,
-                'status' => 1,
-                'additional_info' => [
-                    'stripe_subscription_id' => $subscriptionId,
-                    'stripe_price_id' => $priceId,
-                ],
-            ]);
+            $contract->member_id = $memberId;
+            $contract->plan_id = $plan->getKey();
+            $contract->start_date = $now->toDateString();
+            $contract->end_date = null;
+            $contract->plan_limit_date = null;
+            $contract->stripe_subscription_id = $subscriptionId;
+            $contract->stripe_price_id = $priceId;
         }
 
-        $contract->plan_id = $plan->getKey();
+        $currentPlanId = (string) ($contract->plan_id ?? '');
+        $eventPlanId = (string) $plan->getKey();
+        if ($currentPlanId !== '' && $currentPlanId !== $eventPlanId) {
+            Log::warning('Stripe webhook: invoice.payment_succeeded plan mismatch for existing contract.', [
+                'subscription_id' => $subscriptionId,
+                'contract_id' => $contract->getKey(),
+                'contract_plan_id' => $currentPlanId,
+                'event_plan_id' => $eventPlanId,
+                'price_id' => $priceId,
+            ]);
+
+            return;
+        }
+
+        if ($contract->plan_id === null || $contract->plan_id === '') {
+            $contract->plan_id = $plan->getKey();
+        }
+
         $contract->plan_remain_count = (int) $plan->plan_usage_count;
         $contract->upd_time = $now;
         $contract->auto_renewal_flag = 1;
@@ -224,6 +293,8 @@ class StripeWebhookService
         $additional['stripe_price_id'] = $priceId;
         $contract->additional_info = $additional;
 
+        $contract->stripe_subscription_id = $subscriptionId;
+        $contract->stripe_price_id = $priceId;
         $contract->save();
 
         $this->recordContractEvent(
@@ -256,7 +327,11 @@ class StripeWebhookService
         }
 
         $contract = Contract::query()
-            ->where('additional_info->stripe_subscription_id', $subscriptionId)
+            ->where(function ($query) use ($subscriptionId) {
+                $query
+                    ->where('stripe_subscription_id', $subscriptionId)
+                    ->orWhere('additional_info->stripe_subscription_id', $subscriptionId);
+            })
             ->lockForUpdate()
             ->first();
 
@@ -341,7 +416,7 @@ class StripeWebhookService
         }
 
         $planType = (int) $plan->plan_type;
-        if (! in_array($planType, [2, 3], true)) {
+        if (! in_array($planType, [Plan::TYPE_TICKET, Plan::TYPE_POINT], true)) {
             Log::warning('Stripe webhook: checkout.session.completed unsupported plan_type for top-up.', [
                 'checkout_session_id' => $session['id'] ?? null,
                 'plan_id' => $plan->getKey(),
@@ -442,7 +517,7 @@ class StripeWebhookService
             ]
         );
 
-        $reservation->payment_status = 1;
+        $reservation->payment_status = Reservation::PAYMENT_STATUS_PAID;
         $reservation->additional_info = $additional;
         $reservation->upd_time = $now;
         $reservation->save();
@@ -451,7 +526,11 @@ class StripeWebhookService
     private function resolvePlanByStripePriceId(string $stripePriceId): ?Plan
     {
         return Plan::query()
-            ->where('additional_info->stripe_price_id', $stripePriceId)
+            ->where(function ($query) use ($stripePriceId) {
+                $query
+                    ->where('stripe_price_id', $stripePriceId)
+                    ->orWhere('additional_info->stripe_price_id', $stripePriceId);
+            })
             ->first();
     }
 

@@ -23,6 +23,7 @@ Route::get('/', function () {
 
 Route::post('/stripe/webhook', StripeWebhookController::class)
     ->name('stripe.webhook')
+    ->middleware('throttle:stripe-webhook')
     ->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::middleware('auth')->group(function () {

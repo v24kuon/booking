@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
 {
+    public const TYPE_SUBSCRIPTION = 1;
+
+    public const TYPE_TICKET = 2;
+
+    public const TYPE_POINT = 3;
+
     protected $table = 'plan_master';
 
     protected $primaryKey = 'plan_id';
@@ -26,6 +32,7 @@ class Plan extends Model
         'plan_usage_count',
         'plan_usage_date',
         'plan_price',
+        'stripe_price_id',
         'additional_info',
         'status',
     ];

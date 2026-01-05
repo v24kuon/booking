@@ -16,6 +16,8 @@ return new class extends Migration
             $table->string('event_type', 100);
             $table->json('payload')->nullable();
             $table->timestamps();
+
+            $table->index('event_type');
         });
     }
 
