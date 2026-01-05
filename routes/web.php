@@ -10,6 +10,9 @@ use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\SessionController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StaffImageController;
+use App\Http\Controllers\Member\MypageController;
+use App\Http\Controllers\Member\ReservationController as MemberReservationController;
+use App\Http\Controllers\Member\SessionController as MemberSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -17,9 +20,14 @@ Route::get('/', function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/mypage', function () {
-        return view('member.mypage');
-    })->name('mypage');
+    Route::get('/mypage', [MypageController::class, 'index'])->name('mypage');
+
+    Route::get('/sessions', [MemberSessionController::class, 'index'])->name('member.sessions.index');
+    Route::get('/sessions/{session}/reserve', [MemberSessionController::class, 'reserve'])->name('member.sessions.reserve');
+
+    Route::post('/reservations/normal', [MemberReservationController::class, 'storeNormal'])->name('member.reservations.normal.store');
+    Route::post('/reservations/trial', [MemberReservationController::class, 'storeTrial'])->name('member.reservations.trial.store');
+    Route::post('/reservations/{reservation}/cancel', [MemberReservationController::class, 'cancel'])->name('member.reservations.cancel');
 });
 
 Route::prefix('admin')->name('admin.')->group(function () {

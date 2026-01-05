@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Reservation extends Model
 {
+    public const TYPE_NORMAL = 1;
+
+    public const TYPE_TRIAL = 2;
+
     protected $table = 'reseve_info';
 
     protected $primaryKey = 'reserve_id';
@@ -21,6 +25,8 @@ class Reservation extends Model
         'reserve_id',
         'member_id',
         'session_id',
+        'program_id',
+        'trial_program_id',
         'contract_id',
         'reserve_payment',
         'reserve_type',
@@ -50,8 +56,23 @@ class Reservation extends Model
         return $this->belongsTo(Session::class, 'session_id', 'session_id');
     }
 
+    public function program(): BelongsTo
+    {
+        return $this->belongsTo(Program::class, 'program_id', 'program_id');
+    }
+
     public function contract(): BelongsTo
     {
         return $this->belongsTo(Contract::class, 'contract_id', 'contract_id');
+    }
+
+    public function isTrialType(): bool
+    {
+        return (int) $this->reserve_type === self::TYPE_TRIAL;
+    }
+
+    public function getTypeLabel(): string
+    {
+        return $this->isTrialType() ? '体験' : '通常';
     }
 }
