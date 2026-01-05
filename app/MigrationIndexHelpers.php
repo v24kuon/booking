@@ -17,15 +17,17 @@ trait MigrationIndexHelpers
             return;
         }
 
+        $indexIdentifier = $this->quoteQualifiedIdentifier($driver, $index);
+        $tableIdentifier = $this->quoteQualifiedIdentifier($driver, $table);
+        $columnsSql = implode(', ', array_map(
+            fn (string $column): string => $this->quoteIdentifier($driver, $column),
+            $columns
+        ));
+
         // MySQL does not support "CREATE INDEX IF NOT EXISTS", so make this idempotent by catching errors.
         if ($driver === 'mysql') {
             try {
-                DB::statement(sprintf(
-                    'CREATE UNIQUE INDEX %s ON %s (%s)',
-                    $index,
-                    $table,
-                    implode(', ', $columns)
-                ));
+                DB::statement("CREATE UNIQUE INDEX {$indexIdentifier} ON {$tableIdentifier} ({$columnsSql})");
             } catch (QueryException $e) {
                 // Ignore only "duplicate index name" (idempotent re-run). Do not swallow unexpected DB errors.
                 if (! $this->isMysqlDuplicateIndexName($e)) {
@@ -37,20 +39,18 @@ trait MigrationIndexHelpers
         }
 
         // sqlite / pgsql
-        DB::statement(sprintf(
-            'CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)',
-            $index,
-            $table,
-            implode(', ', $columns)
-        ));
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS {$indexIdentifier} ON {$tableIdentifier} ({$columnsSql})");
     }
 
     private function dropIndex(string $driver, string $table, string $index): void
     {
+        $indexIdentifier = $this->quoteQualifiedIdentifier($driver, $index);
+        $tableIdentifier = $this->quoteQualifiedIdentifier($driver, $table);
+
         // MySQL does not support "DROP INDEX IF EXISTS", so make this idempotent by catching errors.
         if ($driver === 'mysql') {
             try {
-                DB::statement(sprintf('DROP INDEX %s ON %s', $index, $table));
+                DB::statement("DROP INDEX {$indexIdentifier} ON {$tableIdentifier}");
             } catch (QueryException $e) {
                 // Ignore only "can't drop key" (missing index). Do not swallow unexpected DB errors.
                 if (! $this->isMysqlMissingIndex($e)) {
@@ -62,7 +62,22 @@ trait MigrationIndexHelpers
         }
 
         // sqlite / pgsql
-        DB::statement(sprintf('DROP INDEX IF EXISTS %s', $index));
+        DB::statement("DROP INDEX IF EXISTS {$indexIdentifier}");
+    }
+
+    private function quoteIdentifier(string $driver, string $identifier): string
+    {
+        $quote = $driver === 'mysql' ? '`' : '"';
+
+        return $quote.str_replace($quote, $quote.$quote, $identifier).$quote;
+    }
+
+    private function quoteQualifiedIdentifier(string $driver, string $identifier): string
+    {
+        return implode('.', array_map(
+            fn (string $part): string => $this->quoteIdentifier($driver, $part),
+            explode('.', $identifier)
+        ));
     }
 
     private function isMysqlDuplicateIndexName(QueryException $e): bool
