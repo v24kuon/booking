@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Member;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
-use App\Models\Reservation;
 use App\Models\Session;
 use App\Services\ReservationService;
 use Illuminate\Contracts\View\View;
@@ -33,8 +32,7 @@ class SessionController extends Controller
         $deadlines = $reservationService->deadlines();
         $candidates = $reservationService->normalCandidates($member, $session);
 
-        $alreadyReserved = Reservation::query()
-            ->where('member_id', $member->getKey())
+        $alreadyReserved = $member->reservations()
             ->where('session_id', $session->getKey())
             ->where('reserve_status', '!=', 9)
             ->exists();

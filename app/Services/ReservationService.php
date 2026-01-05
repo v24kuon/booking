@@ -259,6 +259,8 @@ class ReservationService
                 $reservation->fill([
                     'member_id' => $member->getKey(),
                     'session_id' => $session->getKey(),
+                    'program_id' => $session->program_id,
+                    'trial_program_id' => null,
                     'contract_id' => $contract->getKey(),
                     'reserve_payment' => $reservePayment,
                     'reserve_type' => 1,
@@ -347,7 +349,7 @@ class ReservationService
 
                 $alreadyTrialed = Reservation::query()
                     ->where('member_id', $member->getKey())
-                    ->where('program_id', $programId)
+                    ->where('trial_program_id', $programId)
                     ->where('reserve_type', 2)
                     ->where('reserve_status', '!=', 9)
                     ->exists();
@@ -371,6 +373,7 @@ class ReservationService
                     'member_id' => $member->getKey(),
                     'session_id' => $session->getKey(),
                     'program_id' => $programId,
+                    'trial_program_id' => $programId,
                     'contract_id' => null,
                     'reserve_payment' => 1, // cash
                     'reserve_type' => 2, // trial
@@ -400,7 +403,7 @@ class ReservationService
                 if ($programId !== null) {
                     $alreadyTrialed = Reservation::query()
                         ->where('member_id', $member->getKey())
-                        ->where('program_id', $programId)
+                        ->where('trial_program_id', $programId)
                         ->where('reserve_type', 2)
                         ->where('reserve_status', '!=', 9)
                         ->exists();
