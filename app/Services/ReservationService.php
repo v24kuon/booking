@@ -24,7 +24,12 @@ class ReservationService
      */
     public function deadlines(): array
     {
-        $deadline = Deadline::query()->first();
+        // deadline_master is expected to be a single-row config table, but keep the read deterministic
+        // in case multiple rows exist.
+        $deadline = Deadline::query()
+            ->orderBy('reserve_deadline')
+            ->orderBy('cancel_deadline')
+            ->first();
 
         return [
             'reserve_deadline' => (int) ($deadline?->reserve_deadline ?? 0),
@@ -53,8 +58,25 @@ class ReservationService
             ->orderBy('contract_id')
             ->get();
 
+        $subscriptionCourseIds = $contracts
+            ->map(fn (Contract $contract) => $contract->plan)
+            ->filter(fn ($plan) => $plan !== null && (int) $plan->plan_type === 1 && ! empty($plan->cource_id))
+            ->map(fn ($plan) => (string) $plan->cource_id)
+            ->unique()
+            ->values();
+
+        $allowedSubscriptionCourseIds = $subscriptionCourseIds->isEmpty()
+            ? []
+            : CourseProgram::query()
+                ->whereIn('cource_id', $subscriptionCourseIds)
+                ->where('program_category', $program->program_category)
+                ->pluck('cource_id')
+                ->map(fn ($courceId) => (string) $courceId)
+                ->flip()
+                ->all();
+
         return $contracts
-            ->map(function (Contract $contract) use ($program): ?array {
+            ->map(function (Contract $contract) use ($allowedSubscriptionCourseIds, $program): ?array {
                 $plan = $contract->plan;
                 if ($plan === null || (int) $plan->status !== 1) {
                     return null;
@@ -71,12 +93,7 @@ class ReservationService
                         return null;
                     }
 
-                    $allowed = CourseProgram::query()
-                        ->where('cource_id', $plan->cource_id)
-                        ->where('program_category', $program->program_category)
-                        ->exists();
-
-                    if (! $allowed) {
+                    if (! isset($allowedSubscriptionCourseIds[(string) $plan->cource_id])) {
                         return null;
                     }
 
