@@ -211,9 +211,9 @@ class ReservationService
 
                 $planType = (int) $plan->plan_type;
                 $reservePayment = match ($planType) {
-                    1 => 5,
-                    2 => 3,
-                    3 => 2,
+                    Plan::TYPE_SUBSCRIPTION => 5,
+                    Plan::TYPE_TICKET => 3,
+                    Plan::TYPE_POINT => 2,
                     default => 0,
                 };
 
@@ -224,9 +224,9 @@ class ReservationService
                 }
 
                 $consumeAmount = match ($planType) {
-                    1 => 1,
-                    2 => (int) ($session->program->program_ticket ?? 0),
-                    3 => (int) ($session->program->program_point ?? 0),
+                    Plan::TYPE_SUBSCRIPTION => 1,
+                    Plan::TYPE_TICKET => (int) ($session->program->program_ticket ?? 0),
+                    Plan::TYPE_POINT => (int) ($session->program->program_point ?? 0),
                     default => 0,
                 };
 
@@ -236,7 +236,7 @@ class ReservationService
                     ]);
                 }
 
-                if ($planType === 1) {
+                if ($planType === Plan::TYPE_SUBSCRIPTION) {
                     if (empty($plan->cource_id)) {
                         throw ValidationException::withMessages([
                             'contract_id' => 'このサブスク契約はコース未設定のため利用できません。',

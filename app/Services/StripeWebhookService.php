@@ -217,6 +217,7 @@ class StripeWebhookService
 
         $subscriptionId = $invoice['subscription'] ?? null;
         $priceId = $invoice['lines']['data'][0]['price']['id'] ?? null;
+        $customerId = $invoice['customer'] ?? null;
 
         if (! is_string($subscriptionId) || $subscriptionId === '' || ! is_string($priceId) || $priceId === '') {
             Log::warning('Stripe webhook: invoice.payment_succeeded missing required fields.', [
@@ -267,6 +268,9 @@ class StripeWebhookService
             $contract->plan_limit_date = null;
             $contract->stripe_subscription_id = $subscriptionId;
             $contract->stripe_price_id = $priceId;
+            if (is_string($customerId) && $customerId !== '') {
+                $contract->stripe_customer_id = $customerId;
+            }
         }
 
         $currentPlanId = (string) ($contract->plan_id ?? '');
@@ -289,12 +293,18 @@ class StripeWebhookService
 
         $contract->plan_remain_count = (int) $plan->plan_usage_count;
         $contract->upd_time = $now;
-        $contract->auto_renewal_flag = 1;
-        $contract->status = 1;
+        $contract->auto_renewal_flag = Contract::AUTO_RENEWAL_ENABLED;
+        $contract->status = Contract::STATUS_ACTIVE;
 
         $additional = is_array($contract->additional_info) ? $contract->additional_info : [];
         $additional['stripe_subscription_id'] = $subscriptionId;
         $additional['stripe_price_id'] = $priceId;
+        if (is_string($customerId) && $customerId !== '') {
+            $additional['stripe_customer_id'] = $customerId;
+            if ($contract->stripe_customer_id === null || $contract->stripe_customer_id === '') {
+                $contract->stripe_customer_id = $customerId;
+            }
+        }
         $contract->additional_info = $additional;
 
         $contract->stripe_subscription_id = $subscriptionId;
