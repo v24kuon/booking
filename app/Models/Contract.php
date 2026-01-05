@@ -8,6 +8,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contract extends Model
 {
+    public const STATUS_ACTIVE = 1;
+
+    public const STATUS_SUSPENDED = 2;
+
+    public const STATUS_CANCELED = 9;
+
+    public const AUTO_RENEWAL_ENABLED = 1;
+
+    public const AUTO_RENEWAL_CANCELED = 9;
+
     protected $table = 'contract_info';
 
     protected $primaryKey = 'contract_id';
@@ -27,6 +37,9 @@ class Contract extends Model
         'plan_remain_count',
         'plan_limit_date',
         'auto_renewal_flag',
+        'stripe_subscription_id',
+        'stripe_customer_id',
+        'stripe_price_id',
         'additional_info',
         'status',
     ];

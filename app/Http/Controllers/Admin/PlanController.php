@@ -65,11 +65,9 @@ class PlanController extends Controller
         ]);
 
         $additional = (array) ($plan->additional_info ?? []);
-        if (! empty($data['stripe_price_id'])) {
-            $additional['stripe_price_id'] = $data['stripe_price_id'];
-        } else {
-            unset($additional['stripe_price_id']);
-        }
+        unset($additional['stripe_price_id']); // avoid duplicate source of truth
+
+        $plan->stripe_price_id = $data['stripe_price_id'] ?? null;
         $plan->additional_info = $additional;
 
         $plan->save();
@@ -116,11 +114,9 @@ class PlanController extends Controller
         ]);
 
         $additional = (array) ($plan->additional_info ?? []);
-        if (! empty($data['stripe_price_id'])) {
-            $additional['stripe_price_id'] = $data['stripe_price_id'];
-        } else {
-            unset($additional['stripe_price_id']);
-        }
+        unset($additional['stripe_price_id']); // avoid duplicate source of truth
+
+        $plan->stripe_price_id = $data['stripe_price_id'] ?? null;
         $plan->additional_info = $additional;
 
         $plan->upd_time = now();

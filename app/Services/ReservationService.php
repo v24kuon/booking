@@ -7,6 +7,7 @@ use App\Models\ContractEvent;
 use App\Models\CourseProgram;
 use App\Models\Deadline;
 use App\Models\Member;
+use App\Models\Plan;
 use App\Models\Reservation;
 use App\Models\Session;
 use Illuminate\Database\QueryException;
@@ -60,7 +61,7 @@ class ReservationService
 
         $subscriptionCourseIds = $contracts
             ->map(fn (Contract $contract) => $contract->plan)
-            ->filter(fn ($plan) => $plan !== null && (int) $plan->plan_type === 1 && ! empty($plan->cource_id))
+            ->filter(fn ($plan) => $plan !== null && (int) $plan->plan_type === Plan::TYPE_SUBSCRIPTION && ! empty($plan->cource_id))
             ->map(fn ($plan) => (string) $plan->cource_id)
             ->unique()
             ->values();
@@ -87,7 +88,7 @@ class ReservationService
                 $reservePayment = 0;
                 $labelPrefix = '';
 
-                if ($planType === 1) {
+                if ($planType === Plan::TYPE_SUBSCRIPTION) {
                     // Subscription: always 1, but must be within course category set.
                     if (empty($plan->cource_id)) {
                         return null;
@@ -100,7 +101,7 @@ class ReservationService
                     $reservePayment = 5;
                     $consumeAmount = 1;
                     $labelPrefix = 'サブスク';
-                } elseif ($planType === 2) {
+                } elseif ($planType === Plan::TYPE_TICKET) {
                     // Ticket
                     $consumeAmount = (int) ($program->program_ticket ?? 0);
                     if ($consumeAmount <= 0) {
@@ -109,7 +110,7 @@ class ReservationService
 
                     $reservePayment = 3;
                     $labelPrefix = '回数券';
-                } elseif ($planType === 3) {
+                } elseif ($planType === Plan::TYPE_POINT) {
                     // Point
                     $consumeAmount = (int) ($program->program_point ?? 0);
                     if ($consumeAmount <= 0) {
@@ -210,9 +211,9 @@ class ReservationService
 
                 $planType = (int) $plan->plan_type;
                 $reservePayment = match ($planType) {
-                    1 => 5,
-                    2 => 3,
-                    3 => 2,
+                    Plan::TYPE_SUBSCRIPTION => 5,
+                    Plan::TYPE_TICKET => 3,
+                    Plan::TYPE_POINT => 2,
                     default => 0,
                 };
 
@@ -223,9 +224,9 @@ class ReservationService
                 }
 
                 $consumeAmount = match ($planType) {
-                    1 => 1,
-                    2 => (int) ($session->program->program_ticket ?? 0),
-                    3 => (int) ($session->program->program_point ?? 0),
+                    Plan::TYPE_SUBSCRIPTION => 1,
+                    Plan::TYPE_TICKET => (int) ($session->program->program_ticket ?? 0),
+                    Plan::TYPE_POINT => (int) ($session->program->program_point ?? 0),
                     default => 0,
                 };
 
@@ -235,7 +236,7 @@ class ReservationService
                     ]);
                 }
 
-                if ($planType === 1) {
+                if ($planType === Plan::TYPE_SUBSCRIPTION) {
                     if (empty($plan->cource_id)) {
                         throw ValidationException::withMessages([
                             'contract_id' => 'このサブスク契約はコース未設定のため利用できません。',
@@ -284,7 +285,7 @@ class ReservationService
                     'reserve_type' => 1,
                     'channel' => $channel,
                     'reserve_status' => 1,
-                    'payment_status' => 1,
+                    'payment_status' => Reservation::PAYMENT_STATUS_PAID,
                     'attendance_status' => 9,
                     'additional_info' => [
                         'consumption' => [
@@ -399,7 +400,7 @@ class ReservationService
                     'reserve_type' => 2, // trial
                     'channel' => $channel,
                     'reserve_status' => 1,
-                    'payment_status' => 1,
+                    'payment_status' => Reservation::PAYMENT_STATUS_PAID,
                     'attendance_status' => 9,
                 ]);
                 $reservation->save();

@@ -13,11 +13,18 @@ use App\Http\Controllers\Admin\StaffImageController;
 use App\Http\Controllers\Member\MypageController;
 use App\Http\Controllers\Member\ReservationController as MemberReservationController;
 use App\Http\Controllers\Member\SessionController as MemberSessionController;
+use App\Http\Controllers\StripeWebhookController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::post('/stripe/webhook', StripeWebhookController::class)
+    ->name('stripe.webhook')
+    ->middleware('throttle:stripe-webhook')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::middleware('auth')->group(function () {
     Route::get('/mypage', [MypageController::class, 'index'])->name('mypage');
