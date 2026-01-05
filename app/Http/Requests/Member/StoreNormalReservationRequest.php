@@ -22,9 +22,18 @@ class StoreNormalReservationRequest extends FormRequest
      */
     public function rules(): array
     {
+        $memberId = $this->user()?->getKey();
+
         return [
             'session_id' => ['required', 'string', 'max:10', Rule::exists('session', 'session_id')],
-            'contract_id' => ['required', 'string', 'max:10', Rule::exists('contract_info', 'contract_id')],
+            'contract_id' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::exists('contract_info', 'contract_id')->when($memberId !== null, function ($rule) use ($memberId) {
+                    return $rule->where('member_id', $memberId);
+                }),
+            ],
         ];
     }
 
@@ -34,7 +43,7 @@ class StoreNormalReservationRequest extends FormRequest
             'session_id.required' => '枠を選択してください。',
             'session_id.exists' => '選択した枠が見つかりません。',
             'contract_id.required' => '利用する契約を選択してください。',
-            'contract_id.exists' => '選択した契約が見つかりません。',
+            'contract_id.exists' => '選択した契約が見つかりません。（契約の所有者が一致しない可能性があります）',
         ];
     }
 }

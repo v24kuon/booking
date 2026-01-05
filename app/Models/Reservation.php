@@ -21,6 +21,7 @@ class Reservation extends Model
         'reserve_id',
         'member_id',
         'session_id',
+        'program_id',
         'contract_id',
         'reserve_payment',
         'reserve_type',

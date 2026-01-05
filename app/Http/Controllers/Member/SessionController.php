@@ -36,6 +36,7 @@ class SessionController extends Controller
         $alreadyReserved = Reservation::query()
             ->where('member_id', $member->getKey())
             ->where('session_id', $session->getKey())
+            ->where('reserve_status', '!=', 9)
             ->exists();
 
         return view('member.sessions.reserve', compact('session', 'deadlines', 'candidates', 'alreadyReserved'));

@@ -18,11 +18,6 @@
     <a href="{{ route('member.sessions.index') }}">枠一覧を見る</a>
   </p>
 
-  @php
-    $activeReservations = $reservations->filter(fn ($r) => (int) $r->reserve_status === 1);
-    $canceledReservations = $reservations->filter(fn ($r) => (int) $r->reserve_status === 9);
-  @endphp
-
   <h2>予約一覧</h2>
 
   @if($activeReservations->isEmpty())

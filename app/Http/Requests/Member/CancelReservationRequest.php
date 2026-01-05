@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Member;
 
+use App\Models\Reservation;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CancelReservationRequest extends FormRequest
@@ -11,7 +12,12 @@ class CancelReservationRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $member = $this->user();
+        $reservation = $this->route('reservation');
+
+        return $member !== null
+            && $reservation instanceof Reservation
+            && (string) $reservation->member_id === (string) $member->getKey();
     }
 
     /**

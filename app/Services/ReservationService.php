@@ -157,6 +157,18 @@ class ReservationService
                     ]);
                 }
 
+                $alreadyReserved = Reservation::query()
+                    ->where('member_id', $member->getKey())
+                    ->where('session_id', $session->getKey())
+                    ->where('reserve_status', '!=', 9)
+                    ->exists();
+
+                if ($alreadyReserved) {
+                    throw ValidationException::withMessages([
+                        'session_id' => 'すでにこの枠を予約しています。',
+                    ]);
+                }
+
                 $contract = Contract::query()
                     ->with('plan')
                     ->where('member_id', $member->getKey())
@@ -278,8 +290,8 @@ class ReservationService
                 return $reservation;
             });
         } catch (QueryException $e) {
-            // Handle unique(member_id, session_id) violation gracefully.
-            if (str_contains($e->getMessage(), 'reseve_info_member_id_session_id_unique')) {
+            // Handle unique constraint violation gracefully (portable across DB engines).
+            if ($this->isUniqueConstraintViolation($e)) {
                 throw ValidationException::withMessages([
                     'session_id' => 'すでにこの枠を予約しています。',
                 ]);
@@ -292,9 +304,10 @@ class ReservationService
     public function createTrialReservation(Member $member, string $sessionId, string $channel = 'web'): Reservation
     {
         $deadlines = $this->deadlines();
+        $programId = null;
 
         try {
-            return DB::transaction(function () use ($channel, $deadlines, $member, $sessionId): Reservation {
+            return DB::transaction(function () use (&$programId, $channel, $deadlines, $member, $sessionId): Reservation {
                 $now = now();
 
                 $session = Session::query()
@@ -302,6 +315,8 @@ class ReservationService
                     ->where('status', 1)
                     ->lockForUpdate()
                     ->findOrFail($sessionId);
+
+                $programId = (string) $session->program_id;
 
                 if ($deadlines['reserve_deadline'] > 0) {
                     $reserveDeadlineAt = $session->start_at->copy()->subHours($deadlines['reserve_deadline']);
@@ -318,12 +333,23 @@ class ReservationService
                     ]);
                 }
 
+                $alreadyReserved = Reservation::query()
+                    ->where('member_id', $member->getKey())
+                    ->where('session_id', $session->getKey())
+                    ->where('reserve_status', '!=', 9)
+                    ->exists();
+
+                if ($alreadyReserved) {
+                    throw ValidationException::withMessages([
+                        'session_id' => 'すでにこの枠を予約しています。',
+                    ]);
+                }
+
                 $alreadyTrialed = Reservation::query()
                     ->where('member_id', $member->getKey())
+                    ->where('program_id', $programId)
                     ->where('reserve_type', 2)
-                    ->whereHas('session', function ($query) use ($session) {
-                        $query->where('program_id', $session->program_id);
-                    })
+                    ->where('reserve_status', '!=', 9)
                     ->exists();
 
                 if ($alreadyTrialed) {
@@ -344,6 +370,7 @@ class ReservationService
                 $reservation->fill([
                     'member_id' => $member->getKey(),
                     'session_id' => $session->getKey(),
+                    'program_id' => $programId,
                     'contract_id' => null,
                     'reserve_payment' => 1, // cash
                     'reserve_type' => 2, // trial
@@ -357,10 +384,33 @@ class ReservationService
                 return $reservation;
             });
         } catch (QueryException $e) {
-            if (str_contains($e->getMessage(), 'reseve_info_member_id_session_id_unique')) {
-                throw ValidationException::withMessages([
-                    'session_id' => 'すでにこの枠を予約しています。',
-                ]);
+            if ($this->isUniqueConstraintViolation($e)) {
+                $alreadyReserved = Reservation::query()
+                    ->where('member_id', $member->getKey())
+                    ->where('session_id', $sessionId)
+                    ->where('reserve_status', '!=', 9)
+                    ->exists();
+
+                if ($alreadyReserved) {
+                    throw ValidationException::withMessages([
+                        'session_id' => 'すでにこの枠を予約しています。',
+                    ]);
+                }
+
+                if ($programId !== null) {
+                    $alreadyTrialed = Reservation::query()
+                        ->where('member_id', $member->getKey())
+                        ->where('program_id', $programId)
+                        ->where('reserve_type', 2)
+                        ->where('reserve_status', '!=', 9)
+                        ->exists();
+
+                    if ($alreadyTrialed) {
+                        throw ValidationException::withMessages([
+                            'session_id' => 'このプログラムの体験はすでに予約済みです。',
+                        ]);
+                    }
+                }
             }
 
             throw $e;
@@ -465,5 +515,17 @@ class ReservationService
             'additional_info' => $additional,
         ]);
         $event->save();
+    }
+
+    private function isUniqueConstraintViolation(QueryException $e): bool
+    {
+        $sqlState = $e->errorInfo[0] ?? null;
+        if ($sqlState === null) {
+            return false;
+        }
+
+        // 23000: integrity constraint violation (SQLite/MySQL, etc.)
+        // 23505: unique_violation (PostgreSQL)
+        return in_array((string) $sqlState, ['23000', '23505'], true);
     }
 }
