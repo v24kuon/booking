@@ -65,4 +65,14 @@ class Reservation extends Model
     {
         return $this->belongsTo(Contract::class, 'contract_id', 'contract_id');
     }
+
+    public function isTrialType(): bool
+    {
+        return (int) $this->reserve_type === self::TYPE_TRIAL;
+    }
+
+    public function getTypeLabel(): string
+    {
+        return $this->isTrialType() ? '体験' : '通常';
+    }
 }

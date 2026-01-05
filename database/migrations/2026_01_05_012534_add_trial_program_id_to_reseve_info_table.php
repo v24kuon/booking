@@ -1,5 +1,6 @@
 <?php
 
+use App\MigrationIndexHelpers;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -7,6 +8,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    use MigrationIndexHelpers;
+
     /**
      * Run the migrations.
      */
@@ -57,50 +60,5 @@ return new class extends Migration
             $table->dropForeign(['trial_program_id']);
             $table->dropColumn('trial_program_id');
         });
-    }
-
-    /**
-     * @param  array<int, string>  $columns
-     */
-    private function createUniqueIndex(string $driver, string $table, string $index, array $columns): void
-    {
-        if (! Schema::hasColumns($table, $columns)) {
-            return;
-        }
-
-        if ($driver === 'mysql') {
-            DB::statement(sprintf(
-                'CREATE UNIQUE INDEX %s ON %s (%s)',
-                $index,
-                $table,
-                implode(', ', $columns)
-            ));
-
-            return;
-        }
-
-        // sqlite / pgsql
-        DB::statement(sprintf(
-            'CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)',
-            $index,
-            $table,
-            implode(', ', $columns)
-        ));
-    }
-
-    private function dropIndex(string $driver, string $table, string $index): void
-    {
-        if ($driver === 'mysql') {
-            try {
-                DB::statement(sprintf('DROP INDEX %s ON %s', $index, $table));
-            } catch (\Throwable) {
-                // ignore if missing
-            }
-
-            return;
-        }
-
-        // sqlite / pgsql
-        DB::statement(sprintf('DROP INDEX IF EXISTS %s', $index));
     }
 };

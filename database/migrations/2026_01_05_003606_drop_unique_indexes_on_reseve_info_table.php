@@ -1,11 +1,13 @@
 <?php
 
+use App\MigrationIndexHelpers;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    use MigrationIndexHelpers;
+
     /**
      * Run the migrations.
      */
@@ -53,55 +55,15 @@ return new class extends Migration
         $this->dropIndex($driver, 'reseve_info', 'reseve_info_member_session_status_unique');
         $this->dropIndex($driver, 'reseve_info', 'reseve_info_member_program_type_status_unique');
 
-        // Restore the original strict unique constraint.
+        // Restore the original strict unique constraints.
         $this->createUniqueIndex($driver, 'reseve_info', 'reseve_info_member_id_session_id_unique', [
             'member_id',
             'session_id',
         ]);
-    }
 
-    /**
-     * @param  array<int, string>  $columns
-     */
-    private function createUniqueIndex(string $driver, string $table, string $index, array $columns): void
-    {
-        if (! Schema::hasColumns($table, $columns)) {
-            return;
-        }
-
-        if ($driver === 'mysql') {
-            DB::statement(sprintf(
-                'CREATE UNIQUE INDEX %s ON %s (%s)',
-                $index,
-                $table,
-                implode(', ', $columns)
-            ));
-
-            return;
-        }
-
-        // sqlite / pgsql
-        DB::statement(sprintf(
-            'CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (%s)',
-            $index,
-            $table,
-            implode(', ', $columns)
-        ));
-    }
-
-    private function dropIndex(string $driver, string $table, string $index): void
-    {
-        if ($driver === 'mysql') {
-            try {
-                DB::statement(sprintf('DROP INDEX %s ON %s', $index, $table));
-            } catch (\Throwable) {
-                // ignore if missing
-            }
-
-            return;
-        }
-
-        // sqlite / pgsql
-        DB::statement(sprintf('DROP INDEX IF EXISTS %s', $index));
+        $this->createUniqueIndex($driver, 'reseve_info', 'reseve_info_member_program_unique', [
+            'member_id',
+            'program_id',
+        ]);
     }
 };

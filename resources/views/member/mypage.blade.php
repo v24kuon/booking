@@ -38,7 +38,7 @@
         <tr>
           <td>{{ $reservation->session?->start_at?->format('Y-m-d H:i') }}</td>
           <td>{{ $reservation->session?->program?->program_name }}</td>
-          <td>{{ (int) $reservation->reserve_type === \App\Models\Reservation::TYPE_TRIAL ? '体験' : '通常' }}</td>
+          <td>{{ $reservation->getTypeLabel() }}</td>
           <td>
             @if($reservation->contract)
               {{ $reservation->contract->plan?->plan_name }}（{{ $reservation->contract_id }}）
@@ -75,7 +75,7 @@
           <tr>
             <td>{{ $reservation->session?->start_at?->format('Y-m-d H:i') }}</td>
             <td>{{ $reservation->session?->program?->program_name }}</td>
-            <td>{{ (int) $reservation->reserve_type === \App\Models\Reservation::TYPE_TRIAL ? '体験' : '通常' }}</td>
+            <td>{{ $reservation->getTypeLabel() }}</td>
             <td>{{ $reservation->canceled_at?->format('Y-m-d H:i') }}</td>
           </tr>
         @endforeach

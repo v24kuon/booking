@@ -18,21 +18,23 @@ class MypageController extends Controller
 
         $reservationTable = (new Reservation)->getTable();
         $sessionTable = (new Session)->getTable();
-        $sessionStartAtSubquery = Session::query()
-            ->select('start_at')
-            ->whereColumn("{$sessionTable}.session_id", "{$reservationTable}.session_id")
-            ->limit(1);
+        $orderBySessionStartAt = function ($query) use ($reservationTable, $sessionTable): void {
+            $query->from($sessionTable)
+                ->select('start_at')
+                ->whereColumn("{$sessionTable}.session_id", "{$reservationTable}.session_id")
+                ->limit(1);
+        };
 
         $activeReservations = $member->reservations()
             ->where('reserve_status', 1)
             ->with(['session.program', 'session.location', 'session.staff', 'contract.plan'])
-            ->orderBy($sessionStartAtSubquery)
+            ->orderBy($orderBySessionStartAt)
             ->get();
 
         $canceledReservations = $member->reservations()
             ->where('reserve_status', 9)
             ->with(['session.program'])
-            ->orderBy($sessionStartAtSubquery)
+            ->orderBy($orderBySessionStartAt)
             ->get();
 
         $contracts = $member->contracts()

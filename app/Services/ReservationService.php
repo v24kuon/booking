@@ -161,6 +161,7 @@ class ReservationService
                     ->where('member_id', $member->getKey())
                     ->where('session_id', $session->getKey())
                     ->where('reserve_status', '!=', 9)
+                    ->lockForUpdate()
                     ->exists();
 
                 if ($alreadyReserved) {
@@ -339,6 +340,7 @@ class ReservationService
                     ->where('member_id', $member->getKey())
                     ->where('session_id', $session->getKey())
                     ->where('reserve_status', '!=', 9)
+                    ->lockForUpdate()
                     ->exists();
 
                 if ($alreadyReserved) {
@@ -352,6 +354,7 @@ class ReservationService
                     ->where('trial_program_id', $programId)
                     ->where('reserve_type', 2)
                     ->where('reserve_status', '!=', 9)
+                    ->lockForUpdate()
                     ->exists();
 
                 if ($alreadyTrialed) {
