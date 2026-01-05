@@ -12,6 +12,7 @@
       <li><strong>予約システム</strong></li>
       @auth
         <li><a href="{{ route('mypage') }}">マイページ</a></li>
+        <li><a href="{{ route('member.sessions.index') }}">枠一覧</a></li>
       @endauth
     </ul>
     <ul>
@@ -33,7 +34,7 @@
   </nav>
 
   <main class="container">
-    @include('admin.partials.flash')
+    @include('partials.flash')
     @yield('content')
   </main>
 </body>
